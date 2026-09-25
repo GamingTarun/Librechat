@@ -34,6 +34,8 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
@@ -113,6 +115,7 @@ fun DeviceScreen(
     var filter by remember { mutableStateOf("") }
     var showNameDialog by remember { mutableStateOf(false) }
     var isArchiveExpanded by remember { mutableStateOf(false) }
+    var showPinDialog by remember { mutableStateOf(false) }
     
     val filteredPaired = pairedPeers.filter { it.name.contains(filter, ignoreCase = true) }
     val filteredArchived = archivedPeers.filter { it.name.contains(filter, ignoreCase = true) }
@@ -125,6 +128,16 @@ fun DeviceScreen(
             onConfirm = {
                 onNameChanged(it)
                 showNameDialog = false
+            }
+        )
+    }
+
+    if (showPinDialog) {
+        ArchivePinDialog(
+            onDismiss = { showPinDialog = false },
+            onSuccess = {
+                showPinDialog = false
+                isArchiveExpanded = true
             }
         )
     }
@@ -189,7 +202,13 @@ fun DeviceScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { isArchiveExpanded = !isArchiveExpanded },
+                .clickable {
+                    if (isArchiveExpanded) {
+                        isArchiveExpanded = false
+                    } else {
+                        showPinDialog = true
+                    }
+                },
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -451,6 +470,62 @@ fun NameEditDialog(
                 enabled = name.isNotBlank()
             ) {
                 Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun ArchivePinDialog(
+    onDismiss: () -> Unit,
+    onSuccess: () -> Unit
+) {
+    var pin by remember { mutableStateOf("") }
+    var isError by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Archive Password") },
+        text = {
+            Column {
+                Text("Enter 4-digit PIN to access archived chats:")
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = pin,
+                    onValueChange = { input ->
+                        if (input.length <= 4 && input.all { it.isDigit() }) {
+                            pin = input
+                            isError = false
+                        }
+                    },
+                    label = { Text("4-Digit PIN") },
+                    singleLine = true,
+                    isError = isError,
+                    supportingText = if (isError) {
+                        { Text("Incorrect PIN. Please try again.") }
+                    } else null,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (pin == "1111") {
+                        onSuccess()
+                    } else {
+                        isError = true
+                    }
+                },
+                enabled = pin.length == 4
+            ) {
+                Text("Unlock")
             }
         },
         dismissButton = {
